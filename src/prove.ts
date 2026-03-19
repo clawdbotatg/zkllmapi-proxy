@@ -17,6 +17,7 @@ interface TreeData {
   levels: string[][];
   root: string;
   depth: number;
+  zeros?: string[];
 }
 
 const MAX_DEPTH = 16;
@@ -33,6 +34,7 @@ function computeMerklePath(treeData: TreeData, commitment: string) {
   const siblings: string[] = [];
   const indices: number[] = [];
 
+  // Walk the compact tree levels
   for (let i = 0; i < treeData.depth; i++) {
     const levelIndex = leafIndex >> i;
     const siblingIndex = levelIndex % 2 === 0 ? levelIndex + 1 : levelIndex - 1;
@@ -40,12 +42,20 @@ function computeMerklePath(treeData: TreeData, commitment: string) {
     if (siblingIndex < treeData.levels[i].length) {
       siblings.push(treeData.levels[i][siblingIndex]);
     } else {
-      siblings.push("0");
+      siblings.push(treeData.zeros?.[i] ?? "0");
     }
     indices.push(levelIndex & 1);
   }
 
-  return { leafIndex, siblings, indices, root: treeData.root, depth: treeData.depth };
+  // Pad from compact depth to MAX_DEPTH=16 using zero hashes at each level.
+  // Above the compact tree, our node is always the left child (index=0),
+  // so the sibling is the zero hash at that level.
+  for (let i = treeData.depth; i < MAX_DEPTH; i++) {
+    siblings.push(treeData.zeros?.[i] ?? "0");
+    indices.push(0);
+  }
+
+  return { leafIndex, siblings, indices, root: treeData.root, depth: MAX_DEPTH };
 }
 
 export async function generateProof(credit: Credit): Promise<ReadyProof> {
@@ -68,15 +78,9 @@ export async function generateProof(credit: Credit): Promise<ReadyProof> {
 
   await bb.destroy();
 
-  // Pad to MAX_DEPTH=16
-  const paddedIndices = [
-    ...merkleData.indices,
-    ...Array(MAX_DEPTH - merkleData.depth).fill(0),
-  ].map(String);
-  const paddedSiblings = [
-    ...merkleData.siblings,
-    ...Array(MAX_DEPTH - merkleData.depth).fill("0"),
-  ].map(String);
+  // merkleData already padded to MAX_DEPTH=16 with correct zero hashes
+  const paddedIndices = merkleData.indices.map(String);
+  const paddedSiblings = merkleData.siblings;
 
   // Fetch circuit
   console.log("[prove] Fetching circuit...");
@@ -140,6 +144,23 @@ export function queueDepth(): number {
   return proofQueue.length;
 }
 
+// Poll /health until treeSize >= expectedSize (server has indexed our new commitments)
+async function waitForIndexing(expectedSize: number, timeoutMs = 30_000): Promise<void> {
+  const start = Date.now();
+  console.log(`[prewarm] waiting for server to index ${expectedSize} leaves...`);
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const health = await fetch(`${API_URL}/health`).then(r => r.json());
+      if (health.treeSize >= expectedSize) {
+        console.log(`[prewarm] ✅ server indexed (treeSize=${health.treeSize}) in ${Date.now() - start}ms`);
+        return;
+      }
+    } catch { /* ignore, keep polling */ }
+    await new Promise(r => setTimeout(r, 1_000));
+  }
+  console.warn(`[prewarm] ⚠️ timeout waiting for indexing after ${timeoutMs}ms — attempting anyway`);
+}
+
 export async function checkAndBuy(
   getCredits: () => Credit[],
   onNewCredits: (newCredits: Credit[]) => void
@@ -153,9 +174,16 @@ export async function checkAndBuy(
   console.log(`[buy] inventory low (${unspent.length} unspent) — buying ${BUY_CHUNK} more...`);
   try {
     const { buyCredits } = await import("./buy.js");
+
+    // Check current tree size before buying so we know what to wait for
+    const healthBefore = await fetch(`${API_URL}/health`).then(r => r.json()).catch(() => ({ treeSize: 0 }));
     const newCredits = await buyCredits(BUY_CHUNK);
     onNewCredits(newCredits);
     console.log(`[buy] ✅ bought ${newCredits.length} new credits`);
+
+    // Wait for server to index before pre-warming
+    const expectedSize = healthBefore.treeSize + newCredits.length;
+    await waitForIndexing(expectedSize);
     preWarm(newCredits).catch(console.error);
   } catch (err) {
     console.error("[buy] ❌ auto-buy failed:", err);
