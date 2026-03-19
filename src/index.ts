@@ -13,7 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-const MODEL = "hermes-3-llama-3.1-405b";
+const MODEL = "minimax-m27";
 
 // In-memory credit state
 let credits = loadCredits();
