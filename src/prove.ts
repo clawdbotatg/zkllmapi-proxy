@@ -34,7 +34,6 @@ function computeMerklePath(treeData: TreeData, commitment: string) {
   const siblings: string[] = [];
   const indices: number[] = [];
 
-  // Walk the compact tree levels
   for (let i = 0; i < treeData.depth; i++) {
     const levelIndex = leafIndex >> i;
     const siblingIndex = levelIndex % 2 === 0 ? levelIndex + 1 : levelIndex - 1;
@@ -42,20 +41,12 @@ function computeMerklePath(treeData: TreeData, commitment: string) {
     if (siblingIndex < treeData.levels[i].length) {
       siblings.push(treeData.levels[i][siblingIndex]);
     } else {
-      siblings.push(treeData.zeros?.[i] ?? "0");
+      siblings.push("0");
     }
     indices.push(levelIndex & 1);
   }
 
-  // Pad from compact depth to MAX_DEPTH=16 using zero hashes at each level.
-  // Above the compact tree, our node is always the left child (index=0),
-  // so the sibling is the zero hash at that level.
-  for (let i = treeData.depth; i < MAX_DEPTH; i++) {
-    siblings.push(treeData.zeros?.[i] ?? "0");
-    indices.push(0);
-  }
-
-  return { leafIndex, siblings, indices, root: treeData.root, depth: MAX_DEPTH };
+  return { leafIndex, siblings, indices, root: treeData.root, depth: treeData.depth };
 }
 
 export async function generateProof(credit: Credit): Promise<ReadyProof> {
@@ -78,9 +69,15 @@ export async function generateProof(credit: Credit): Promise<ReadyProof> {
 
   await bb.destroy();
 
-  // merkleData already padded to MAX_DEPTH=16 with correct zero hashes
-  const paddedIndices = merkleData.indices.map(String);
-  const paddedSiblings = merkleData.siblings;
+  // Pad to MAX_DEPTH=16
+  const paddedIndices = [
+    ...merkleData.indices,
+    ...Array(MAX_DEPTH - merkleData.depth).fill(0),
+  ].map(String);
+  const paddedSiblings = [
+    ...merkleData.siblings,
+    ...Array(MAX_DEPTH - merkleData.depth).fill("0"),
+  ];
 
   // Fetch circuit
   console.log("[prove] Fetching circuit...");
