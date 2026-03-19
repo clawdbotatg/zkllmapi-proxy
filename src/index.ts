@@ -5,6 +5,7 @@ import { PORT, BUY_THRESHOLD, BUY_CHUNK } from "./config.js";
 import { loadCredits, saveCredits, markSpent, getUnspentCredits } from "./credits.js";
 import { preWarm, popProof, queueDepth, checkAndBuy } from "./prove.js";
 import { callZkApi, buildOpenAIResponse, streamResponse } from "./adapter.js";
+import { encryptChatRequest, decryptChatResponse, getE2EESession, isE2EEModel, DEFAULT_E2EE_MODEL } from "./e2ee.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { getPrivateKey } from "./config.js";
 
@@ -47,12 +48,16 @@ app.get("/health", (_req, res) => {
 
 // ─── POST /v1/chat/completions ────────────────────────────────
 app.post("/v1/chat/completions", async (req, res) => {
-  const { messages, stream = false } = req.body;
+  const { messages, stream = false, model: requestedModel } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ error: { message: "messages is required", type: "invalid_request_error" } });
     return;
   }
+
+  // Determine if E2EE mode is requested
+  const e2eeMode = requestedModel ? isE2EEModel(requestedModel) : false;
+  const targetModel = requestedModel ?? MODEL;
 
   // Get a ready proof
   let proof = popProof();
@@ -83,10 +88,28 @@ app.post("/v1/chat/completions", async (req, res) => {
     }
   }
 
-  console.log(`[proxy] using proof for commitment ${proof.commitment.slice(0, 12)}...`);
+  console.log(`[proxy] using proof for commitment ${proof.commitment.slice(0, 12)}... ${e2eeMode ? "[E2EE 🔒]" : ""}`);
+
+  // E2EE: encrypt messages before sending to our server
+  let callOptions: Parameters<typeof callZkApi>[3] = { model: targetModel };
+  if (e2eeMode) {
+    try {
+      const { encryptedBody, e2eeHeaders } = await encryptChatRequest(req.body, targetModel);
+      callOptions = {
+        model: targetModel,
+        encryptedMessages: encryptedBody.encrypted_messages,
+        e2eeHeaders,
+      };
+      console.log(`[e2ee] messages encrypted, client pubkey: ${callOptions.e2eeHeaders!["X-Venice-TEE-Client-Pub-Key"].slice(0, 16)}...`);
+    } catch (err: any) {
+      res.status(502).json({ error: { message: `E2EE setup failed: ${err.message}`, type: "server_error" } });
+      return;
+    }
+  }
+
   let zkResponse: Response;
   try {
-    zkResponse = await callZkApi(proof, messages, stream);
+    zkResponse = await callZkApi(proof, messages, stream, callOptions);
   } catch (err: any) {
     res.status(502).json({ error: { message: `ZK API unreachable: ${err.message}`, type: "server_error" } });
     return;
@@ -104,18 +127,28 @@ app.post("/v1/chat/completions", async (req, res) => {
   credits = markSpent(credits, proof.commitment);
   persistCredits();
 
-  // Trigger background replenishment
+  // Trigger background replenishment (waitForIndexing is inside checkAndBuy)
   checkAndBuy(() => credits, (newCredits) => {
     credits = [...credits, ...newCredits];
     persistCredits();
-    preWarm(newCredits).catch(console.error);
   }).catch(console.error);
 
   if (stream) {
-    await streamResponse(zkResponse, res, MODEL);
+    await streamResponse(zkResponse, res, targetModel);
   } else {
-    const data = await zkResponse.json();
-    res.json(buildOpenAIResponse(data, MODEL));
+    let data = await zkResponse.json();
+    // E2EE: decrypt response if needed
+    if (e2eeMode) {
+      try {
+        const session = await getE2EESession(targetModel);
+        data = decryptChatResponse(data, session);
+        console.log(`[e2ee] response decrypted ✅`);
+      } catch (err: any) {
+        console.error(`[e2ee] response decryption failed:`, err.message);
+        // Still return whatever we got — let caller decide
+      }
+    }
+    res.json(buildOpenAIResponse(data, targetModel));
   }
 });
 

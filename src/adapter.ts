@@ -18,20 +18,42 @@ export interface OpenAIChatRequest {
 export async function callZkApi(
   proof: ReadyProof,
   messages: OpenAIMessage[],
-  stream: boolean
+  stream: boolean,
+  options?: {
+    model?: string;
+    // E2EE: if set, messages have been pre-encrypted — send encrypted_messages instead
+    encryptedMessages?: string;
+    e2eeHeaders?: Record<string, string>;
+  }
 ): Promise<Response> {
+  const body: Record<string, any> = {
+    proof: proof.proofHex,
+    publicInputs: proof.publicInputs,
+    nullifier_hash: proof.nullifierHashHex,
+    root: proof.rootHex,
+    depth: proof.depth,
+    stream,
+  };
+
+  if (options?.model) body.model = options.model;
+
+  if (options?.encryptedMessages) {
+    // E2EE mode: server will forward this blob + headers to Venice blind
+    body.encrypted_messages = options.encryptedMessages;
+    body.messages = []; // empty — server must not try to read them
+  } else {
+    body.messages = messages;
+  }
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (options?.e2eeHeaders) {
+    Object.assign(headers, options.e2eeHeaders);
+  }
+
   return fetch(`${API_URL}/v1/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      proof: proof.proofHex,
-      publicInputs: proof.publicInputs,
-      nullifier_hash: proof.nullifierHashHex,
-      root: proof.rootHex,
-      depth: proof.depth,
-      messages,
-      stream,
-    }),
+    headers,
+    body: JSON.stringify(body),
   });
 }
 
