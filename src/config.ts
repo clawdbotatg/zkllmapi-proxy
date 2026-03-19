@@ -1,0 +1,63 @@
+import "dotenv/config";
+
+export function getPrivateKey(): `0x${string}` {
+  const pk = process.env.PRIVATE_KEY;
+  if (!pk) throw new Error("PRIVATE_KEY not set in .env");
+  return pk as `0x${string}`;
+}
+
+export function getRpcUrl(): string {
+  return process.env.RPC_URL ?? "https://mainnet.base.org";
+}
+
+export const PORT = parseInt(process.env.PORT ?? "3100", 10);
+export const BUY_THRESHOLD = parseInt(process.env.BUY_THRESHOLD ?? "3", 10);
+export const BUY_CHUNK = parseInt(process.env.BUY_CHUNK ?? "5", 10);
+
+export const API_URL = "https://backend.zkllmapi.com";
+
+export const CONTRACTS = {
+  APICredits:   "0xFc137f8a2E4ca655084731B5eeeF424BEcdae86C" as `0x${string}`,
+  CLAWDRouter:  "0x1b60CfCe6ddBD2A8f4c5bf83b8bc66f9ef683BC7" as `0x${string}`,
+  CLAWDPricing: "0xaca9733Cc19aD837899dc7D1170aF1d5367C332E" as `0x${string}`,
+  CLAWD:        "0x9f86dB9fc6f7c9408e8Fda3Ff8ce4e78ac7a6b07" as `0x${string}`,
+} as const;
+
+export const ROUTER_ABI = [
+  {
+    inputs: [
+      { name: "commitments", type: "uint256[]" },
+      { name: "minCLAWDOut", type: "uint256" },
+    ],
+    name: "buyWithETH",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+] as const;
+
+export const PRICING_ABI = [
+  {
+    inputs: [],
+    name: "getOracleData",
+    outputs: [
+      { name: "clawdPerEth", type: "uint256" },
+      { name: "ethUsd", type: "uint256" },
+      { name: "pricePerCreditCLAWD", type: "uint256" },
+      { name: "usdPerCredit", type: "uint256" },
+      { name: "clawdUsd", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const APICREDITS_ABI = [
+  {
+    inputs: [],
+    name: "pricePerCredit",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
