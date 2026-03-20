@@ -13,7 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
-const MODEL = "minimax-m27";
+const MODEL = "e2ee-glm-5";
 
 // In-memory credit state
 let credits = loadCredits();
