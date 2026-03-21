@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
+    "chat": "tsx src/chat.ts",
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
