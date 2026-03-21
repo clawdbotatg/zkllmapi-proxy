@@ -48,7 +48,8 @@ Returns wallet address, credit counts (total/unspent/spent), proof queue depth, 
 ## Credit Economics
 
 - ~$0.10 per credit
-- Auto-buys in chunks of 5 when inventory drops below 3
+- Auto-buys 1 credit at a time when inventory drops below `BUY_THRESHOLD`
+- ⚠️ `BUY_CHUNK` must be 1 — Base's 25M gas cap makes multi-credit `buyWithETH` txs exceed the block gas limit. Setting chunk > 1 will result in failed transactions.
 - Configure via `BUY_THRESHOLD` and `BUY_CHUNK` in `.env`
 
 ## Privacy
@@ -63,4 +64,4 @@ Each API request consumes a unique ZK proof that breaks the link between your wa
 | `RPC_URL` | `https://mainnet.base.org` | Base RPC endpoint |
 | `PORT` | `3100` | Proxy listen port |
 | `BUY_THRESHOLD` | `3` | Auto-buy when unspent credits fall below this |
-| `BUY_CHUNK` | `5` | Number of credits to buy per auto-buy |
+| `BUY_CHUNK` | `1` | Number of credits to buy per auto-buy (must be 1 — Base gas limit) |
