@@ -17,9 +17,9 @@ export const BUY_CHUNK = parseInt(process.env.BUY_CHUNK ?? "5", 10);
 export const API_URL = "https://backend.zkllmapi.com";
 
 export const CONTRACTS = {
-  APICredits:   "0xE7cc1F41Eb59775bD201Bb943d2230BA52294608" as `0x${string}`,
-  CLAWDRouter:  "0x9302e14c54fbA35A96457f6dD7A3AF5c082D5C24" as `0x${string}`,
-  CLAWDPricing: "0xaca9733Cc19aD837899dc7D1170aF1d5367C332E" as `0x${string}`,
+  APICredits:   "0x799c5F602C357bc36379734bcd5D1438D50E4A80" as `0x${string}`,
+  CLAWDRouter:  "0xbe1BD1956281075DFE5aB9FEde2B9A0d0AC17116" as `0x${string}`,
+  CLAWDPricing: "0x2B3c8bD1Db3fC52C58F416681e7F80e5f0f0597c" as `0x${string}`,
   CLAWD:        "0x9f86dB9fc6f7c9408e8Fda3Ff8ce4e78ac7a6b07" as `0x${string}`,
 } as const;
 
