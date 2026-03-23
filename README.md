@@ -24,7 +24,7 @@ npm run chat     # interactive E2EE chat CLI
 ## Interactive Chat CLI
 
 ```bash
-npm run chat           # start interactive chat (e2ee-glm-5 in Venice TEE)
+npm run chat           # start interactive chat (zai-org-glm-5 in Venice TEE)
 npm run chat -- --buy  # buy 10 credits, then start chat
 npm run chat -- --health  # show credit inventory + queue status
 ```

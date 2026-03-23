@@ -5,7 +5,7 @@ import { PORT, BUY_THRESHOLD, BUY_CHUNK } from "./config.js";
 import { loadCredits, saveCredits, markSpent, getUnspentCredits } from "./credits.js";
 import { preWarm, popProof, queueDepth, checkAndBuy } from "./prove.js";
 import { callZkApi, buildOpenAIResponse, streamResponse } from "./adapter.js";
-import { encryptChatRequest, decryptChatResponse, getE2EESession, isE2EEModel, DEFAULT_E2EE_MODEL } from "./e2ee.js";
+import { encryptChatRequest, decryptChatResponse, getE2EESession, isE2EEModel } from "./e2ee.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { getPrivateKey } from "./config.js";
 

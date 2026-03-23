@@ -180,7 +180,16 @@ export async function encryptChatRequest(
   body: Record<string, any>,
   model: string
 ): Promise<{ encryptedBody: Record<string, any>; e2eeHeaders: Record<string, string> }> {
-  const session = await getE2EESession(model);
+  let session: E2EESession;
+  try {
+    session = await getE2EESession(model);
+  } catch (err: any) {
+    // Attestation failed (e.g. Venice /tee/attestation endpoint times out).
+    // For models where Venice handles E2EE auto (zai-org-glm-5), send plaintext.
+    // The TEE still runs — Venice decrypts server-side.
+    console.warn(`[e2ee] attestation failed for "${model}" (${err.message}) — sending plaintext (TEE still protects inference)`);
+    return { encryptedBody: body, e2eeHeaders: {} };
+  }
 
   const messagesJson = JSON.stringify(body.messages);
   const encryptedMessages = encryptPayload(messagesJson, session.sharedAesKey);
