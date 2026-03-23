@@ -15,7 +15,7 @@ import { encryptChatRequest } from "./e2ee.js";
 import { generateProof, popProof, queueDepth } from "./prove.js";
 import { loadCredits, saveCredits } from "./credits.js";
 
-const MODEL = "e2ee-glm-5";
+const MODEL = "zai-org-glm-5";
 const API_URL = "https://backend.zkllmapi.com";
 
 const rl = createInterface({ input: process.stdin, output: process.stdout });
