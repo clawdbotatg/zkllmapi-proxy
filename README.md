@@ -1,14 +1,14 @@
 # zkllmapi-proxy
 
-OpenAI-compatible local proxy for [zkllmapi.com](https://zkllmapi.com) — anonymous LLM inference via ZK proofs with end-to-end encryption.
+OpenAI-compatible local proxy for [zkllmapi.com](https://zkllmapi.com) — anonymous LLM inference via ZK proofs on Base.
 
 ## How It Works
 
 1. **Auto-buys** ZK credits on Base (buys 10 when inventory drops to ≤5)
 2. **Pre-generates** ZK proofs in the background so requests don't wait 30-60s
-3. **E2EE** — messages encrypted to Venice TEE via ECDH + AES-256-GCM; proxy never sees plaintext
+3. **Venice TEE** — requests go to Venice AI's TEE-enclave inference; if Venice E2EE is available (attestation endpoint is up), messages are encrypted client-side via ECDH + AES-256-GCM; otherwise sent in plaintext — TEE still runs either way
 4. **Serves** a standard OpenAI-compatible API (`POST /v1/chat/completions`)
-5. Each request uses a unique ZK proof — the server **never sees your wallet or identity**
+5. Each request uses a unique ZK proof — the server never learns your wallet or identity
 
 ## Setup
 
